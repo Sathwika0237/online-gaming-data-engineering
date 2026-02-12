@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Online Gaming Analytics Dashboard</title>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {background-color: #f4f6f9;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .kpi-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .kpi {
+            flex: 1;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        }
+
+        .kpi h2 {
+            margin: 0;
+            color: #3498db;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 6px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .prediction-result {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>🎮 Online Gaming ML Dashboard</h1>
+
+    <!-- KPI SECTION -->
+    <div class="kpi-container">
+        <div class="kpi">
+            <h2 id="totalPredictions">-</h2>
+            <p>Total Predictions</p>
+        </div>
+
+        <div class="kpi">
+            <h2 id="highSpenders">-</h2>
+            <p>High Spenders</p>
+        </div>
+
+        <div class="kpi">
+            <h2 id="avgProbability">-</h2>
+            <p>Avg Probability</p>
+        </div>
+    </div>
+
+    <!-- CHART SECTION -->
+    <div class="card">
+	<h2>📊 High Spender Distribution</h2>
+	<canvas id="spenderChart"></canvas>
+    </div>
+
+
+    <!-- PREDICTION FORM -->
+    <div class="card">
+        <h2>🔮 Predict Player Spending Behavior</h2>
+
+        <input id="score" placeholder="Average Score">
+        <input id="kills" placeholder="Average Kills">
+        <input id="latency" placeholder="Average Latency">
+        <input id="duration" placeholder="Session Duration">
+        <input id="hours" placeholder="Active Hours">
+
+        <button onclick="predict()">Predict</button>
+
+        <div class="prediction-result" id="predictionResult"></div>
+    </div>
+
+    <!-- BATCH INFO -->
+    <div class="card">
+        <h2>📊 Latest Batch Information</h2>
+        <p id="timestamp"></p>
+        <button onclick="loadBatch()">Refresh Data</button>
+    </div>
+
+</div>
+
+<script>
+
+const API_URL = "https://high-spender-api-480173379001.europe-west1.run.app";
+
+// Initialize Chart
+function initializeChart() {
+    const ctx = document.getElementById('spenderChart').getContext('2d');
+    spenderChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['High Spenders', 'Non High Spenders'],
+            datasets: [{
+                label: 'Player Count',
+                data: [0, 0],
+                backgroundColor: ['#e74c3c', '#2ecc71']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+
+// Predict Player
+async function predict() {
+    const response = await fetch(API_URL + "/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            avg_score: Number(document.getElementById("score").value),
+            avg_kills: Number(document.getElementById("kills").value),
+            avg_latency: Number(document.getElementById("latency").value),
+            avg_session_duration: Number(document.getElementById("duration").value),
+            active_hours: Number(document.getElementById("hours").value)
+        })
+    });
+
+    const data = await response.json();
+
+    document.getElementById("predictionResult").innerText =
+        "Prediction: " + data.predicted_high_spender +
+        " | Probability: " + data.prediction_probability.toFixed(2);
+}
+
+async function loadBatch() {
+    const response = await fetch(API_URL + "/latest_batch");
+    const data = await response.json();
+
+    const total = data.total_predictions;
+    const high = data.high_spenders;
+    const low = total - high;
+
+
+
+    document.getElementById("totalPredictions").innerText = data.total_predictions;
+    document.getElementById("highSpenders").innerText = data.high_spenders;
+    document.getElementById("avgProbability").innerText = data.avg_probability.toFixed(2);
+    document.getElementById("timestamp").innerText =
+        "Last Updated: " + data.latest_timestamp;
+
+    
+    // Update Chart
+    if (spenderChart) {
+        spenderChart.data.datasets[0].data = [high, low];
+        spenderChart.update();
+    }
+}
+
+// Auto refresh every 10 seconds
+setInterval(loadBatch, 10000);
+
+// Load initially
+loadBatch();
+
+</script>
+
+</body>
+</html>
+
